@@ -49,7 +49,7 @@ impl std::fmt::Display for DiscoveryMode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
     /// Discovery mode
-    /// Default: auto
+    /// Default: local
     #[serde(default)]
     pub mode: DiscoveryMode,
 
