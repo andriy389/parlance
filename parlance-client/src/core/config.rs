@@ -5,6 +5,74 @@ use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
+/// Discovery mode for finding peers
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DiscoveryMode {
+    /// Local network discovery only (UDP multicast)
+    Local,
+    /// Internet discovery only (bootstrap server)
+    Internet,
+}
+
+impl Default for DiscoveryMode {
+    fn default() -> Self {
+        DiscoveryMode::Local
+    }
+}
+
+impl std::str::FromStr for DiscoveryMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "local" => Ok(DiscoveryMode::Local),
+            "internet" => Ok(DiscoveryMode::Internet),
+            _ => Err(format!(
+                "Invalid discovery mode '{}'. Valid options: local, internet",
+                s
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for DiscoveryMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DiscoveryMode::Local => write!(f, "local"),
+            DiscoveryMode::Internet => write!(f, "internet"),
+        }
+    }
+}
+
+/// Network configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkConfig {
+    /// Discovery mode
+    /// Default: auto
+    #[serde(default)]
+    pub mode: DiscoveryMode,
+
+    /// Bootstrap server URL for internet discovery
+    /// Default: ws://localhost:8080
+    #[serde(default = "default_bootstrap_server")]
+    pub bootstrap_server: String,
+}
+
+/// Discovery configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscoveryConfig {
+    /// Heartbeat interval in seconds for bootstrap server
+    /// Default: 10 seconds
+    #[serde(default = "default_heartbeat_interval_secs")]
+    pub heartbeat_interval_secs: u64,
+
+    /// Peer timeout in seconds
+    /// Default: 30 seconds
+    #[serde(default = "default_discovery_peer_timeout_secs")]
+    pub peer_timeout_secs: u64,
+}
+
 /// Peer behavior configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PeerConfig {
@@ -22,6 +90,12 @@ pub struct PeerConfig {
 /// Complete application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default)]
+    pub network: NetworkConfig,
+
+    #[serde(default)]
+    pub discovery: DiscoveryConfig,
+
     #[serde(default)]
     pub peer: PeerConfig,
 }
@@ -68,7 +142,27 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            network: NetworkConfig::default(),
+            discovery: DiscoveryConfig::default(),
             peer: PeerConfig::default(),
+        }
+    }
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            mode: DiscoveryMode::default(),
+            bootstrap_server: default_bootstrap_server(),
+        }
+    }
+}
+
+impl Default for DiscoveryConfig {
+    fn default() -> Self {
+        Self {
+            heartbeat_interval_secs: default_heartbeat_interval_secs(),
+            peer_timeout_secs: default_discovery_peer_timeout_secs(),
         }
     }
 }
@@ -83,6 +177,18 @@ impl Default for PeerConfig {
 }
 
 // Default value functions for serde
+fn default_bootstrap_server() -> String {
+    "ws://localhost:8080".to_string()
+}
+
+fn default_heartbeat_interval_secs() -> u64 {
+    10
+}
+
+fn default_discovery_peer_timeout_secs() -> u64 {
+    30
+}
+
 fn default_peer_timeout_secs() -> u64 {
     15
 }

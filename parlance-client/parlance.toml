@@ -1,0 +1,36 @@
+# Parlance Configuration File
+#
+# This is the default configuration for Parlance.
+# Copy this file and customize it to your needs.
+#
+# Note: Multicast address (239.255.255.250:6789) is part of the Parlance
+# protocol and cannot be changed. All peers must use the same address.
+
+[network]
+# Discovery mode: local | internet
+# - local: Local network discovery only (UDP multicast)
+# - internet: Internet discovery only (bootstrap server)
+# Default: local
+mode = "local"
+
+# Bootstrap server URL for internet discovery
+# Default: ws://localhost:8080
+bootstrap_server = "ws://localhost:8080"
+
+[discovery]
+# Heartbeat interval for bootstrap server (in seconds)
+# Default: 10 seconds
+heartbeat_interval_secs = 10
+
+# Peer timeout for bootstrap server (in seconds)
+# Default: 30 seconds
+peer_timeout_secs = 30
+
+[peer]
+# How often to broadcast presence announcements (in seconds)
+# Default: 5 seconds
+announce_interval_secs = 5
+
+# How long to wait before considering a peer offline (in seconds)
+# Default: 15 seconds
+timeout_secs = 15

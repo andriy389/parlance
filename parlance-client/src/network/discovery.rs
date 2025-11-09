@@ -56,8 +56,6 @@ impl DiscoveryService {
     pub async fn new(config: DiscoveryConfig) -> Result<Self> {
         let bind_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), MULTICAST_PORT);
 
-        // Create a socket with SO_REUSEADDR and SO_REUSEPORT enabled
-        // This allows multiple instances to bind to the same multicast port
         let socket = socket2::Socket::new(
             socket2::Domain::IPV4,
             socket2::Type::DGRAM,
@@ -66,7 +64,7 @@ impl DiscoveryService {
 
         socket.set_reuse_address(true)?;
 
-        // On Unix systems, also set SO_REUSEPORT to allow multiple binds
+        // On Unix systems, we set SO_REUSEPORT to allow multiple binds
         #[cfg(all(unix, not(target_os = "solaris"), not(target_os = "illumos")))]
         {
             use std::os::unix::io::AsRawFd;
@@ -89,7 +87,6 @@ impl DiscoveryService {
         let socket: std::net::UdpSocket = socket.into();
         let socket = UdpSocket::from_std(socket)?;
 
-        // Join the multicast group
         socket
             .join_multicast_v4(MULTICAST_ADDR, Ipv4Addr::UNSPECIFIED)
             .map_err(|e| ParlanceError::MulticastJoinError {
@@ -97,7 +94,6 @@ impl DiscoveryService {
                 source: e,
             })?;
 
-        // Enable multicast loop so we can see our own messages (useful for debugging)
         socket.set_multicast_loop_v4(true)?;
 
         let multicast_addr = SocketAddr::new(IpAddr::V4(MULTICAST_ADDR), MULTICAST_PORT);
@@ -163,7 +159,6 @@ impl DiscoveryService {
             }
             DiscoveryMessage::Goodbye { nickname } => {
                 tracing::info!(nickname = %nickname, "Received goodbye from peer");
-                // Peer will be removed by timeout mechanism
             }
         }
 
@@ -179,7 +174,6 @@ impl DiscoveryService {
         let socket = std::sync::Arc::new(self.socket);
         let config = std::sync::Arc::new(self.config);
 
-        // Task 1: Periodic announcements
         let announce_socket = socket.clone();
         let announce_config = config.clone();
         let multicast_addr = self.multicast_addr;
@@ -209,7 +203,6 @@ impl DiscoveryService {
             }
         });
 
-        // Task 2: Listen for messages
         let listen_socket = socket.clone();
         let listen_config = config.clone();
 
@@ -250,7 +243,6 @@ impl DiscoveryService {
             }
         });
 
-        // Task 3: Cleanup timed-out peers
         let cleanup_registry = config.registry.clone();
         let cleanup_timeout = config.peer_timeout;
         let cleanup_task = tokio::spawn(async move {
@@ -261,7 +253,6 @@ impl DiscoveryService {
             }
         });
 
-        // Run all tasks
         tokio::select! {
             _ = announce_task => {
                 tracing::error!("Announce task terminated unexpectedly");

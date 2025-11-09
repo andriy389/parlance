@@ -9,6 +9,7 @@ mod network;
 
 use app::{App, AppConfig};
 use clap::Parser;
+use core::config::DiscoveryMode;
 use core::error::Result;
 use core::validation::NicknameValidator;
 use std::path::PathBuf;
@@ -29,6 +30,14 @@ struct Args {
     /// Generate a default configuration file
     #[arg(long, value_name = "FILE")]
     generate_config: Option<PathBuf>,
+
+    /// Discovery mode (overrides config file)
+    #[arg(short, long, value_name = "MODE")]
+    mode: Option<DiscoveryMode>,
+
+    /// Bootstrap server URL (overrides config file)
+    #[arg(long, value_name = "URL")]
+    bootstrap_server: Option<String>,
 }
 
 #[tokio::main]
@@ -49,12 +58,31 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    let config = if let Some(config_path) = args.config {
+    let mut config = if let Some(config_path) = args.config {
         core::config::Config::from_file(&config_path)
             .map_err(|e| core::error::ParlanceError::ConfigError(e.to_string()))?
     } else {
-        core::config::Config::default()
+        let default_path = PathBuf::from("parlance-client/parlance.toml");
+
+        if default_path.exists() {
+            tracing::debug!("Loading configuration from {}", default_path.display());
+            core::config::Config::from_file(&default_path)
+                .map_err(|e| core::error::ParlanceError::ConfigError(e.to_string()))?
+        } else {
+            tracing::debug!("No parlance.toml found, using default configuration");
+            core::config::Config::default()
+        }
     };
+
+    if let Some(mode) = args.mode {
+        tracing::info!("Overriding discovery mode from CLI: {}", mode);
+        config.network.mode = mode;
+    }
+
+    if let Some(server) = args.bootstrap_server {
+        tracing::info!("Overriding bootstrap server from CLI: {}", server);
+        config.network.bootstrap_server = server;
+    }
 
     NicknameValidator::validate(&args.nickname)
         .map_err(|e| core::error::ParlanceError::ConfigError(format!("Invalid nickname: {}", e)))?;

@@ -49,6 +49,18 @@ pub enum ParlanceError {
     /// UTF-8 conversion error
     #[error("UTF-8 error: {0}")]
     Utf8Error(#[from] std::string::FromUtf8Error),
+
+    /// Bootstrap server connection error
+    #[error("Bootstrap connection error: {0}")]
+    BootstrapConnection(String),
+
+    /// WebSocket error
+    #[error("WebSocket error: {0}")]
+    WebSocket(String),
+
+    /// Bootstrap server returned an error
+    #[error("Bootstrap server error: {0}")]
+    BootstrapServerError(String),
 }
 
 /// Convenience type alias for Results using our custom error type.

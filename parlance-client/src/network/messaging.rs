@@ -106,14 +106,12 @@ impl MessagingService {
 
     /// Send a message to a peer by nickname
     pub async fn send_message(&self, to_nickname: &str, content: String) -> Result<()> {
-        // Find the peer
         let peers = self.config.registry.get_all().await;
         let peer = peers
             .iter()
             .find(|p| p.nickname == to_nickname)
             .ok_or_else(|| ParlanceError::PeerNotFound(to_nickname.to_string()))?;
 
-        // Connect to the peer
         let stream = TcpStream::connect(peer.addr).await.map_err(|e| {
             tracing::error!(
                 peer = %to_nickname,
@@ -124,7 +122,6 @@ impl MessagingService {
             e
         })?;
 
-        // Create and send the message
         let msg = TextMessage::new(self.config.nickname.clone(), content.clone());
         let data = serde_json::to_string(&msg)?;
 
@@ -135,7 +132,6 @@ impl MessagingService {
 
         tracing::info!(to = %to_nickname, "Message sent");
 
-        // Notify that message was sent
         let _ = self.event_tx.send(MessageEvent::Sent {
             to: to_nickname.to_string(),
             content,

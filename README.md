@@ -1,33 +1,37 @@
 # Parlance
 
-A decentralized messaging application for local area networks. Uses UDP multicast for automatic peer discovery and TCP for direct peer-to-peer communication.
+A decentralized P2P messaging application.
 
 ## Demo
 ![Parlance Demo](demo/parlance-demo.gif)
 
 ## Overview
-A functional P2P messaging application for LANs. We demonstrate how peers can discover each other and exchange messages without any central coordination. All communication happens directly between clients.
+Parlance is a functional P2P messaging application that works both on local networks and across the internet. It uses UDP multicast for local peer discovery and a lightweight bootstrap server for internet-scale discovery. All messaging happens directly peer-to-peer.
 
 ## Current State
 
 **Working:**
-- UDP multicast-based peer discovery (IPv4 only)
+- **Local discovery**: UDP multicast for automatic LAN peer discovery
+- **Internet discovery**: WebSocket-based bootstrap server for cross-network discovery
+- **Mode selection**: Choose local or internet discovery
 - Direct TCP messaging between discovered peers
 - Multiple instances on the same machine (SO_REUSEPORT)
 
 **Limitations:**
-- Local network only (no NAT traversal)
+- No NAT traversal yet (requires direct connectivity or port forwarding)
 - No encryption (cleartext over TCP)
 - No message persistence
 - No group chat (only 1-to-1 messaging)
 
 ## Architecture
 
-**Discovery Layer (UDP Multicast):**
+**Local Discovery (UDP Multicast):**
 - Multicast group: `239.255.255.250:6789`
-- Periodic announcements every 5 seconds
-- Peer timeout after 15 seconds of silence
 - JSON-serialized discovery messages
+
+**Internet Discovery (Bootstrap Server):**
+- WebSocket-based signaling server
+- Maintains registry of online peers
 
 **Messaging Layer (TCP):**
 - Each peer listens on a dynamically assigned port
@@ -40,27 +44,65 @@ A functional P2P messaging application for LANs. We demonstrate how peers can di
 Requires Rust 1.70 or later.
 
 ```bash
-cargo build --release
+# Build everything
+cargo build --workspace
 ```
 
 ## Usage
+
+### Local Network Mode (Default)
 
 Start multiple instances on the same network:
 
 ```bash
 # Terminal 1
-cargo run -- --nickname alice
+cargo run -p parlance -- --nickname alice
 
 # Terminal 2
-cargo run -- --nickname bob
+cargo run -p parlance -- --nickname bob
 ```
 
-Discovery happens automatically. After a few seconds, peers will appear in each other's peer lists.
+Discovery happens automatically via UDP multicast. After a few seconds, peers will appear in each other's peer lists.
+
+### Internet Mode
+
+**Step 1:** Start the bootstrap server:
+
+```bash
+# Terminal 1
+cargo run -p bootstrap-server -- --host 0.0.0.0 --port 8080
+```
+
+**Step 2:** Start clients with `--mode internet`:
+
+```bash
+# Terminal 2
+cargo run -p parlance -- --nickname alice --mode internet
+
+# Terminal 3 (can be on a different network!)
+cargo run -p parlance -- --nickname bob --mode internet
+```
+
+The clients will automatically connect to the bootstrap server and discover each other.
+
+### Configuration
+
+Edit `parlance-client/parlance.toml` to configure discovery mode:
+
+```toml
+[network]
+mode = "local"  # Options: local | internet
+bootstrap_server = "ws://localhost:8080"
+```
+
+- `local`: Use UDP multicast (LAN only, default)
+- `internet`: Use bootstrap server (cross-network)
 
 **Commands:**
 - `/peers` - Show discovered peers
 - `/send <nickname> <message>` - Send a message
 - `/quit` - Exit
+- `/help` - Show help
 
 **Example:**
 ```

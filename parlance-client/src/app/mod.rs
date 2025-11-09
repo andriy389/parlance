@@ -9,9 +9,10 @@ pub mod output;
 use command::Command;
 use output::Output;
 
-use crate::core::config::Config;
+use crate::core::config::{Config, DiscoveryMode};
 use crate::core::error::Result;
 use crate::core::peer::PeerRegistry;
+use crate::network::bootstrap::BootstrapClient;
 use crate::network::discovery::{DiscoveryConfig, DiscoveryService};
 use crate::network::messaging::{MessageEvent, MessagingConfig, MessagingService};
 use std::sync::Arc;
@@ -31,7 +32,7 @@ impl AppConfig {
     pub fn new(nickname: String) -> Self {
         Self {
             nickname,
-            tcp_port: 0, // Let OS assign port
+            tcp_port: 0,
         }
     }
 }
@@ -57,10 +58,8 @@ impl App {
     pub async fn run(self) -> Result<()> {
         info!(nickname = %self.app_config.nickname, "Starting Parlance");
 
-        // Create message event channel
         let (event_tx, event_rx) = mpsc::unbounded_channel::<MessageEvent>();
 
-        // Create messaging service first to get the actual port
         let messaging_config = MessagingConfig {
             nickname: self.app_config.nickname.clone(),
             tcp_port: self.app_config.tcp_port,
@@ -69,11 +68,9 @@ impl App {
 
         let messaging_service = MessagingService::new(messaging_config, event_tx.clone()).await?;
 
-        // Get the actual TCP port that was bound
         let actual_tcp_port = messaging_service.local_addr()?.port();
         info!(tcp_port = actual_tcp_port, "TCP port bound");
 
-        // Create discovery service with the actual TCP port and config
         let discovery_config = DiscoveryConfig {
             nickname: self.app_config.nickname.clone(),
             tcp_port: actual_tcp_port,
@@ -84,14 +81,45 @@ impl App {
 
         let discovery_service = DiscoveryService::new(discovery_config).await?;
 
+        let mode_str = match self.config.network.mode {
+            DiscoveryMode::Local => "Local network only",
+            DiscoveryMode::Internet => "Internet only",
+        };
+        info!(mode = mode_str, "Discovery mode");
+
         Output::welcome_banner(&self.app_config.nickname, actual_tcp_port);
 
-        // Spawn services and tasks
-        let discovery_task = tokio::spawn(async move {
-            if let Err(e) = discovery_service.run().await {
-                error!(error = ?e, "Discovery service error");
+        let (discovery_task, bootstrap_task) = match self.config.network.mode {
+            DiscoveryMode::Local => {
+                // Local mode: UDP multicast discovery
+                let task = tokio::spawn(async move {
+                    if let Err(e) = discovery_service.run().await {
+                        error!(error = ?e, "Discovery service error");
+                    }
+                });
+                (Some(task), None)
             }
-        });
+            DiscoveryMode::Internet => {
+                // Internet mode: bootstrap server
+                let local_addr = format!("0.0.0.0:{}", actual_tcp_port)
+                    .parse()
+                    .expect("Valid socket address");
+
+                let mut bootstrap_client = BootstrapClient::new(
+                    self.config.network.bootstrap_server.clone(),
+                    self.app_config.nickname.clone(),
+                    local_addr,
+                    Arc::new(self.registry.clone()),
+                );
+
+                let task = tokio::spawn(async move {
+                    if let Err(e) = bootstrap_client.run().await {
+                        error!(error = ?e, "Bootstrap client error");
+                    }
+                });
+                (None, Some(task))
+            }
+        };
 
         let msg_service = Arc::new(messaging_service);
         let msg_service_for_task = msg_service.clone();
@@ -117,7 +145,12 @@ impl App {
 
         Output::info("\nShutting down...");
 
-        discovery_task.abort();
+        if let Some(task) = discovery_task {
+            task.abort();
+        }
+        if let Some(task) = bootstrap_task {
+            task.abort();
+        }
         messaging_task.abort();
         event_task.abort();
 
@@ -201,7 +234,6 @@ impl App {
                         Output::message_received(&msg.format());
                     }
                     MessageEvent::Sent { to, content: _ } => {
-                        // Already handled in input task
                         tracing::debug!(to = %to, "Message sent event");
                     }
                     MessageEvent::SendError { to, error } => {
